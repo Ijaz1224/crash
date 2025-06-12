@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🚀 Crash Game - Islamic Theme</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      background: linear-gradient(135deg, #0b3d91, #022c59);
+      color: white;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      flex-direction: column;
+      padding: 15px;
+    }
+    .container {
+      background: rgba(0, 0, 0, 0.85);
+      border-radius: 15px;
+      padding: 30px;
+      width: 360px;
+      box-shadow: 0 0 20px #00ffcc;
+      text-align: center;
+      position: relative;
+    }
+    h1 {
+      color: #4caf50;
+      margin-bottom: 12px;
+      user-select: none;
+    }
+    #logo {
+      width: 80px;
+      margin: 10px auto 20px;
+      display: block;
+    }
+    #wallet, #multiplier, #result {
+      margin: 15px 0;
+    }
+    #wallet {
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    #multiplier {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #4caf50;
+      user-select: none;
+    }
+    button {
+      background-color: #4caf50;
+      border: none;
+      color: black;
+      padding: 12px 25px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 10px 5px 0 5px;
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    button:hover {
+      background-color: #3b8b3b;
+    }
+    input {
+      padding: 8px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      margin-top: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      user-select: text;
+    }
+    #leaderboard {
+      margin-top: 20px;
+      max-height: 150px;
+      overflow-y: auto;
+      text-align: left;
+      border-top: 1px solid #4caf50;
+      padding-top: 10px;
+      user-select: none;
+    }
+    #leaderboard h3 {
+      margin-bottom: 5px;
+      color: #a5d6a7;
+    }
+    #leaderboard ol {
+      padding-left: 20px;
+      margin: 0;
+      color: #dcedc8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Islamic_Crescent.svg/120px-Islamic_Crescent.svg.png" alt="Islamic Logo" />
+    <h1>🚀 Crash Game</h1>
+
+    <div id="wallet">Balance: <span id="balance">100</span> coins</div>
+    <div id="multiplier">1.00x</div>
+
+    <button id="startBtn" onclick="startGame()">Start</button>
+    <button id="cashoutBtn" onclick="cashOut()" style="display:none">Cashout</button>
+
+    <div id="result"></div>
+
+    <input type="number" id="depositAmount" placeholder="Deposit amount" min="1" />
+    <button onclick="deposit()">Deposit</button>
+
+    <input type="number" id="withdrawAmount" placeholder="Withdraw amount" min="1" />
+    <button onclick="withdraw()">Withdraw</button>
+
+    <div id="leaderboard">
+      <h3>🏆 Leaderboard (Top Cashouts)</h3>
+      <ol id="leaderboardList"></ol>
+    </div>
+
+    <audio id="soundStart" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+    <audio id="soundCrash" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+    <audio id="soundCashout" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
+  </div>
+
+  <script>
+    let balance = 100;
+    let multiplier = 1.0;
+    let interval;
+    let crashPoint;
+    let gameActive = false;
+    const leaderboardKey = "crashGameLeaderboard";
+
+    function updateBalance() {
+      document.getElementById("balance").innerText = balance.toFixed(2);
+    }
+
+    function loadLeaderboard() {
+      const data = localStorage.getItem(leaderboardKey);
+      return data ? JSON.parse(data) : [];
+    }
+
+    function saveLeaderboard(board) {
+      localStorage.setItem(leaderboardKey, JSON.stringify(board));
+    }
+
+    function updateLeaderboard() {
+      const board = loadLeaderboard();
+      const list = document.getElementById("leaderboardList");
+      list.innerHTML = "";
+      board.forEach(entry => {
+        const li = document.createElement("li");
+        li.textContent = `${entry.name}: ${entry.score.toFixed(2)}x`;
+        list.appendChild(li);
+      });
+    }
+
+    function addToLeaderboard(name, score) {
+      let board = loadLeaderboard();
+      board.push({ name, score });
+      board.sort((a, b) => b.score - a.score);
+      if (board.length > 10) board.pop();
+      saveLeaderboard(board);
+      updateLeaderboard();
+    }
+
+    function startGame() {
+      if (gameActive) return;
+      if (balance < 10) {
+        alert("Insufficient balance. Please deposit more coins.");
+        return;
+      }
+
+      document.getElementById("result").innerText = "";
+      document.getElementById("startBtn").style.display = "none";
+      document.getElementById("cashoutBtn").style.display = "inline-block";
+      multiplier = 1.0;
+      crashPoint = Math.random() * 4 + 1.5;
+      gameActive = true;
+      balance -= 10; // Bet cost
+      updateBalance();
+      document.getElementById("soundStart").play();
+
+      interval = setInterval(() => {
+        multiplier += 0.1;
+        document.getElementById("multiplier").innerText = multiplier.toFixed(2) + "x";
+        if (multiplier >= crashPoint) {
+          endGame(false);
+        }
+      }, 200);
+    }
+
+    function cashOut() {
+      if (!gameActive) return;
+      clearInterval(interval);
+      const reward = 10 * multiplier;
+      balance += reward;
+      updateBalance();
+      document.getElementById("result").innerText = `✅ Cashed out at ${multiplier.toFixed(2)}x (+${reward.toFixed(2)} coins)`;
+      addToLeaderboard("Player", multiplier);
+      document.getElementById("startBtn").style.display = "inline-block";
+      document.getElementById("cashoutBtn").style.display = "none";
+      document.getElementById("soundCashout").play();
+      gameActive = false;
+    }
+
+    function endGame(cashedOut) {
+      clearInterval(interval);
+      if (!cashedOut) {
+        document.getElementById("result").innerText = `💥 Crashed at ${multiplier.toFixed(2)}x! You lost your bet.`;
+        document.getElementById("soundCrash").play();
+      }
+      document.getElementById("startBtn").style.display = "inline-block";
+      document.getElementById("cashoutBtn").style.display = "none";
+      gameActive = false;
+    }
+
+    function deposit() {
+      const amount = parseFloat(document.getElementById("depositAmount").value);
+      if (isNaN(amount) || amount <= 0) {
+        alert("Enter a valid deposit amount.");
+        return;
+      }
+      balance += amount;
+      updateBalance();
+      document.getElementById("depositAmount").value = "";
+      alert(`Deposited ${amount.toFixed(2)} coins.`);
+    }
+
+    function withdraw() {
+      const amount = parseFloat(document.getElementById("withdrawAmount").value);
+      if (isNaN(amount) || amount <= 0) {
+        alert("Enter a valid withdraw amount.");
+        return;
+      }
+      if (amount > balance) {
+        alert("You don't have enough balance to withdraw this amount.");
+        return;
+      }
+      balance -= amount;
+      updateBalance();
+      document.getElementById("withdrawAmount").value = "";
+      alert(`Withdrawn ${amount.toFixed(2)} coins.`);
+    }
+
+    updateBalance();
+    updateLeaderboard();
+
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(() => console.log('Service Worker registration failed'));
+    }
+  </script>
+</body>
+</html>
